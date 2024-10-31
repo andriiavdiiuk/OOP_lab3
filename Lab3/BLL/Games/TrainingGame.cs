@@ -1,26 +1,23 @@
-﻿using Lab2.GameAccounts;
+﻿using Lab3.BLL.GameAccounts;
+using Lab3.BLL.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Lab2.Games
+namespace Lab3.BLL.Games
 {
-    public class StandardGame : BaseGame
+    public class TrainingGame : BaseGame
     {
-        private Random rand = new Random();
-        private int gameRating = -1;
+        public TrainingGame(IGameService service) : base(service)
+        {
+        }
 
         public override int GetGameRating()
         {
-            if (gameRating < 0)
-            {
-                gameRating = rand.Next(10, 100);
-            }
-            return gameRating;
+            return 0;
         }
-
         public override int GetRatingForPlayer(BaseGameAccount player)
         {
             return GetGameRating();

@@ -1,39 +1,36 @@
-﻿using Lab2.GameAccounts;
-using Lab2.Games;
+﻿using Lab3.BLL.GameAccounts;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Lab2
+namespace Lab3.BLL.Games
 {
-    class GameRecord
+    public class GameResult
     {
-        private static int TotalIds = 0;
-
         public int Id { get; set; }
         public BaseGameAccount Winner { get; set; }
         public BaseGameAccount Loser { get; set; }
-        public BaseGame Game { get; set; }  
         public int WinnerRatingChange { get; set; }
         public int WinnerRating { get; set; }
         public int LoserRating { get; set; }
         public int LoserRatingChange { get; set; }
         public int Rating { get; set; }
+        public GameType Type { get; set; }
 
-        public GameRecord(BaseGameAccount winner, BaseGameAccount loser, BaseGame game, int winnerRatingChange, 
-                          int winnerRating, int loserRatingChange, int loserRating, int rating)
+        public GameResult() { }
+        public GameResult(int id, BaseGameAccount winner, BaseGameAccount loser, int winnerRatingChange, int winnerRating, int loserRating, int loserRatingChange, int rating, GameType type)
         {
-            Id = TotalIds++;
+            Id = id;
             Winner = winner;
             Loser = loser;
-            Game = game;
             WinnerRatingChange = winnerRatingChange;
             WinnerRating = winnerRating;
             LoserRating = loserRating;
             LoserRatingChange = loserRatingChange;
             Rating = rating;
+            Type = type;
         }
     }
 }

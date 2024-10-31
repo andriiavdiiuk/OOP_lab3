@@ -1,23 +1,26 @@
-﻿using Lab2.Games;
+﻿using Lab3.DAL.Repositories;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Lab3.BLL.Services;
+using Lab3.BLL.Games;
 
-namespace Lab2.GameAccounts
+namespace Lab3.BLL.GameAccounts
 {
     public abstract class BaseGameAccount : IEquatable<BaseGameAccount>
     {
-        protected int _currentRating = 1;
-        public string Username { get; protected set; }
+        public int Id { get; set; }
+        public string Username { get; set; }
+        private int _currentRating = 100;
         public int CurrentRating
         {
             get
             {
                 return _currentRating;
             }
-            private set
+             set
             {
                 if (value < 1)
                 {
@@ -33,68 +36,76 @@ namespace Lab2.GameAccounts
         {
             get
             {
-                return GameRepository.GetHistory(this).Count;
+                return Service.GetHistory(Id).Count();
             }
         }
+        public IGameAccountService Service { get; set; }
 
         protected virtual void OnWin() { }
         protected virtual void OnLose() { }
         public abstract int CalculateWinRating(int rating);
         public abstract int CalculateLoseRating(int rating);
 
-        public BaseGameAccount(string username, int baseRating)
+        public BaseGameAccount(IGameAccountService _service, string username)
         {
             Username = username;
-            CurrentRating = baseRating;
+            Service = _service;
         }
-
 
         public void WinGame(BaseGameAccount opponent, BaseGame game)
         {
             int ratingChange = CalculateWinRating(game.GetRatingForPlayer(this));
             CurrentRating += ratingChange;
+            Service.Update(this);
             OnWin();
 
-            GameRecord record = new GameRecord(this, opponent, game, ratingChange, CurrentRating, 0, 0, game.GetGameRating());
-            opponent.LoseGame(this, game, record);
+            GameResult result = new GameResult(-1, this, opponent, ratingChange,CurrentRating, 0, 0, game.GetGameRating(), game.GetGameType());
+            opponent.LoseGame(this, game, result);
         }
 
         public void LoseGame(BaseGameAccount opponent, BaseGame game)
         {
             int ratingChange = CalculateLoseRating(game.GetRatingForPlayer(this));
             CurrentRating -= ratingChange;
+            Service.Update(this);
             OnLose();
 
-            GameRecord record = new GameRecord(opponent, this, game, 0, 0, -ratingChange, CurrentRating, game.GetGameRating());
-            opponent.WinGame(this, game, record);
+            GameResult result = new GameResult(-1,opponent,this,0,0,CurrentRating,-ratingChange,game.GetGameRating(),game.GetGameType());
+            opponent.WinGame(this, game, result);
         }
 
-        private void WinGame(BaseGameAccount opponent, BaseGame game, GameRecord record)
+        private void WinGame(BaseGameAccount opponent, BaseGame game, GameResult result)
         {
             int ratingChange = CalculateWinRating(game.GetRatingForPlayer(this));
             CurrentRating += ratingChange;
+            Service.Update(this);
             OnWin();
 
-            record.WinnerRatingChange = ratingChange;
-            record.WinnerRating = CurrentRating;
-            GameRepository.AddGame(record);
+            result.Winner = this;
+            result.WinnerRatingChange = ratingChange;
+            result.WinnerRating = CurrentRating;
+            game.Service.Create(result);
+
         }
 
-        private void LoseGame(BaseGameAccount opponent, BaseGame game, GameRecord record)
+        private void LoseGame(BaseGameAccount opponent, BaseGame game, GameResult result)
         {
             int ratingChange = CalculateLoseRating(game.GetRatingForPlayer(this));
             CurrentRating -= ratingChange;
+            Service.Update(this);
             OnLose();
 
-            record.LoserRatingChange = -ratingChange;
-            record.LoserRating = CurrentRating;
-            GameRepository.AddGame(record);
+            result.Loser = this;
+            result.LoserRatingChange = -ratingChange;
+            result.LoserRating = CurrentRating;
+            game.Service.Create(result);
         }
 
         public virtual string GetStats()
         {
             string result = $"{Username}\n";
-            result += $"AccountType: {GetType().Name}\n";
+            result += $"Account Id: {Id}\n";
+            result += $"AccountType: {GetAccountType().ToString()}\n";
             result += $"Current Rating: {CurrentRating}\n";
             result += $"Games Count: {GamesCount}\n";
             result += "--------------------------------------------------------------------------------------------\n";
@@ -105,8 +116,8 @@ namespace Lab2.GameAccounts
             int rating = 0;
             int ratingChange = 0;
             string ratingFormatted = "";
-            List<GameRecord> history = GameRepository.GetHistory(this);
-            foreach (GameRecord game in history)
+            IEnumerable<GameResult> history = Service.GetHistory(Id);
+            foreach (GameResult game in history)
             {
                 if (game.Winner.Username == Username)
                 {
@@ -124,12 +135,38 @@ namespace Lab2.GameAccounts
                 }
 
                 ratingFormatted = $"{rating,-5} ({ratingChange})";
-                result += $"|{opponent,-12} | {winLost,-10} | {game.Rating,-11} | {ratingFormatted,-13} | {game.Id,-4}| {game.Game.GetType().Name,-25} |\n";
+                result += $"|{opponent,-12} | {winLost,-10} | {game.Rating,-11} | {ratingFormatted,-13} | {game.Id,-4}| {game.Type.ToString(),-25} |\n";
             };
             result += "--------------------------------------------------------------------------------------------\n";
 
             return result;
         }
+
+
+        public AccountType GetAccountType()
+        {
+            Type enumType = typeof(AccountType);
+            Type type = GetType();
+            foreach (AccountType gameType in Enum.GetValues(enumType))
+            {
+                var memberInfo = enumType.GetMember(gameType.ToString());
+                var attributes = memberInfo[0].GetCustomAttributes(typeof(TypeAttribute<>), false);
+
+                if (attributes.Length > 0)
+                {
+                    Type? attributeType = attributes[0].GetType();
+                    Type genericType = attributeType.GetGenericArguments()[0];
+
+                    if (genericType == type)
+                    {
+                        return gameType;
+                    }
+
+                }
+            }
+            throw new InvalidOperationException($"No GameType attribute found for {type.Name}.");
+        }
+
         public bool Equals(BaseGameAccount? obj)
         {
             if (obj == null)
@@ -141,7 +178,7 @@ namespace Lab2.GameAccounts
         public static bool operator ==(BaseGameAccount? b1, BaseGameAccount? b2)
         {
             if ((object)b1 == null)
-                return ((object)b2 == null);
+                return (object)b2 == null;
 
             return b1.Equals(b2);
         }

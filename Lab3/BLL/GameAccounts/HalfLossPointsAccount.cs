@@ -1,16 +1,18 @@
-﻿using System;
+﻿using Lab3.BLL.Services;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Lab2.GameAccounts
+namespace Lab3.BLL.GameAccounts
 {
     public class HalfLossPointsAccount : BaseGameAccount
     {
-        public HalfLossPointsAccount(string username, int baseRating) : base(username, baseRating)
+        public HalfLossPointsAccount(IGameAccountService _service, string username) : base(_service, username)
         {
         }
+
         public override int CalculateWinRating(int rating)
         {
             if (rating < 0)
